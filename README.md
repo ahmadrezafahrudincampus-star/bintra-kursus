@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bintra Kursus
 
-## Getting Started
+Aplikasi web kursus komputer berbasis Next.js dan Supabase untuk landing page, pendaftaran siswa, portal siswa, dan CMS/admin.
 
-First, run the development server:
+## Fitur Utama
+
+- Landing page kursus komputer dengan UI modern
+- Autentikasi login dan pendaftaran
+- Form pendaftaran siswa
+- Dashboard siswa untuk materi, iuran, jadwal, dan profil
+- Admin/CMS untuk pendaftar, siswa, jadwal, materi, pengumuman, dan keuangan
+- Integrasi Supabase Auth, Database, dan Storage
+
+## Tech Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
+- Supabase
+- Sonner
+- Lucide React
+
+## Menjalankan Project
+
+Install dependency:
+
+```bash
+npm install
+```
+
+Jalankan development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Buat file `.env.local` dan isi minimal:
 
-## Learn More
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Jalankan migration SQL di folder [supabase/migrations](/supabase/migrations) ke project Supabase Anda:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `00_init.sql`
+- `01_announcements.sql`
+- `01_storage_course_materials.sql`
 
-## Deploy on Vercel
+## Super Admin Seed
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Untuk membuat akun super admin default:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run seed:super-admin
+```
+
+Default credential:
+
+- Email: `super_admin@kursus.com`
+- Password: `admin123`
+
+Pastikan `SUPABASE_SERVICE_ROLE_KEY` sudah valid sebelum menjalankan seed.

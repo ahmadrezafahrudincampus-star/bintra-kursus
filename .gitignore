@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local scratch/reference files
+index.html
+landing-page-standalone.html
+phase7_plan.md
+ui_phase7_plan.md
+ts_error.txt
