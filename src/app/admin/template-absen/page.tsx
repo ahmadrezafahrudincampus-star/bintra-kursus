@@ -1,66 +1,83 @@
-import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Printer, Filter, ScrollText } from 'lucide-react'
-import { getSessionsForAdmin } from '@/lib/actions/attendance'
 import type { Metadata } from 'next'
+import { Filter, ScrollText } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { getSessionsForAdmin } from '@/lib/actions/attendance'
+import { PrintPageButton } from '@/components/admin/PrintPageButton'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export const metadata: Metadata = { title: 'Template Absensi | Admin' }
 
+type PrintableStudent = {
+    id: string
+    name: string
+    category: string
+}
+
+type EnrollmentTemplateRow = {
+    id: string
+    profiles: { full_name: string } | null
+    participant_category: string
+}
+
 export default async function AdminTemplateAbsenPage({
-    searchParams
+    searchParams,
 }: {
-    searchParams: Promise<{ session?: string, month?: string }>
+    searchParams: Promise<{ session?: string; month?: string }>
 }) {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
     const params = await searchParams
     const selectedSession = params.session ?? ''
 
-    // Default to current month YYYY-MM
     const now = new Date()
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const selectedMonth = params.month ?? currentMonth
 
     const sessions = await getSessionsForAdmin()
-    const selectedSessionData = sessions.find((s) => s.id === selectedSession)
+    const selectedSessionData = sessions.find((session) => session.id === selectedSession)
 
-    let students: any[] = []
+    let students: PrintableStudent[] = []
     if (selectedSession) {
         const { data } = await supabase
             .from('student_enrollments')
             .select(`
                 id,
-                profiles ( full_name ),
+                profiles(full_name),
                 participant_category
             `)
             .eq('session_id', selectedSession)
             .eq('status', 'ACTIVE')
 
         if (data) {
-            students = data.map((d: any) => ({
-                id: d.id,
-                name: d.profiles?.full_name ?? '—',
-                category: d.participant_category,
-            }))
-            // Sort by name
-            students.sort((a, b) => a.name.localeCompare(b.name))
+            students = (data as EnrollmentTemplateRow[])
+                .map((row) => ({
+                    id: row.id,
+                    name: row.profiles?.full_name ?? '-',
+                    category: row.participant_category,
+                }))
+                .sort((a, b) => a.name.localeCompare(b.name))
         }
     }
 
-    // Convert selectedMonth to human readable format
     const [year, monthNum] = selectedMonth.split('-')
-    const monthName = new Date(parseInt(year), parseInt(monthNum) - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+    const monthName = new Date(
+        Number.parseInt(year, 10),
+        Number.parseInt(monthNum, 10) - 1,
+        1
+    ).toLocaleDateString('id-ID', {
+        month: 'long',
+        year: 'numeric',
+    })
 
-    // Asumsikan dalam 1 bulan maksimal ada 5 pertemuan untuk 1 sesi (karena seminggu sekali)
     const MAX_MEETINGS = 5
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto print:max-w-none print:m-0 print:space-y-0">
-            {/* Header (No Print) */}
+        <div className="mx-auto max-w-5xl space-y-6 print:m-0 print:max-w-none print:space-y-0">
             <div className="no-print">
                 <h1 className="h2 mb-1">Cetak Template Absensi</h1>
                 <p className="body-sm text-muted-foreground">
@@ -68,92 +85,83 @@ export default async function AdminTemplateAbsenPage({
                 </p>
             </div>
 
-            {/* Filter (No Print) */}
             <Card className="no-print">
-                <CardHeader className="pb-3 border-b border-border/40">
+                <CardHeader className="border-b border-border/40 pb-3">
                     <CardTitle className="h5 flex items-center gap-2">
-                        <Filter className="w-5 h-5 text-primary" />
+                        <Filter className="h-5 w-5 text-primary" />
                         Konfigurasi Cetak
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-5 flex flex-col sm:flex-row gap-4">
-                    <form method="GET" className="flex flex-1 flex-col sm:flex-row gap-3">
+                <CardContent className="flex flex-col gap-4 pt-5 sm:flex-row">
+                    <form method="GET" className="flex flex-1 flex-col gap-3 sm:flex-row">
                         <div className="flex-1 space-y-1">
-                            <label className="label-sm text-muted-foreground uppercase tracking-wider">Sesi Kelas</label>
+                            <label className="label-sm uppercase tracking-wider text-muted-foreground">Sesi Kelas</label>
                             <select
                                 name="session"
                                 defaultValue={selectedSession}
-                                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                             >
                                 <option value="">-- Pilih Sesi --</option>
-                                {sessions.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.name} · {s.day_of_week}
-                                        {s.course_master ? ` (${s.course_master.name})` : ''}
+                                {sessions.map((session) => (
+                                    <option key={session.id} value={session.id}>
+                                        {session.name} - {session.day_of_week}
+                                        {session.course_master ? ` (${session.course_master.name})` : ''}
                                     </option>
                                 ))}
                             </select>
                         </div>
                         <div className="flex-1 space-y-1">
-                            <label className="label-sm text-muted-foreground uppercase tracking-wider">Bulan</label>
+                            <label className="label-sm uppercase tracking-wider text-muted-foreground">Bulan</label>
                             <input
                                 type="month"
                                 name="month"
                                 defaultValue={selectedMonth}
-                                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                             />
                         </div>
                         <div className="flex items-end">
                             <button
                                 type="submit"
-                                className="px-5 py-2 h-[38px] bg-secondary text-secondary-foreground rounded-lg text-sm font-medium transition-hover hover:bg-secondary/80 border border-border"
+                                className="h-[38px] rounded-lg border border-border bg-secondary px-5 py-2 text-sm font-medium text-secondary-foreground transition-hover hover:bg-secondary/80"
                             >
                                 Tampilkan Preview
                             </button>
                         </div>
                     </form>
 
-                    {selectedSession && (
-                        <div className="flex items-end pt-3 sm:pt-0 sm:border-l sm:pl-4 border-border/60">
-                            {/* Tombol cetak memanggil window.print() - bisa ditaruh di client component kecil, atau kita siasati dengan onClick dari komponen turunan */}
-                            <form action="javascript:window.print()">
-                                <button
-                                    type="submit"
-                                    className="px-5 py-2 h-[38px] bg-primary text-primary-foreground rounded-lg text-sm font-medium transition-hover hover:bg-primary/90 hover:shadow-md flex items-center gap-2"
-                                >
-                                    <Printer className="w-4 h-4" />
-                                    Cetak PDF
-                                </button>
-                            </form>
+                    {selectedSession ? (
+                        <div className="flex items-end border-border/60 pt-3 sm:border-l sm:pl-4 sm:pt-0">
+                            <PrintPageButton className="flex h-[38px] items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-hover hover:bg-primary/90 hover:shadow-md" />
                         </div>
-                    )}
+                    ) : null}
                 </CardContent>
             </Card>
 
-            {/* Preview Sheet (Printable) */}
             {selectedSession ? (
-                <div className="bg-white text-black p-8 sm:p-12 border border-border/40 shadow-sm rounded-xl print:border-none print:shadow-none print:p-0">
-                    <div className="text-center mb-6">
+                <div className="rounded-xl border border-border/40 bg-white p-8 text-black shadow-sm print:border-none print:p-0 print:shadow-none sm:p-12">
+                    <div className="mb-6 text-center">
                         <h2 className="text-2xl font-bold uppercase tracking-wider">Daftar Hadir Siswa</h2>
-                        <p className="text-lg mt-1 font-medium">{selectedSessionData?.course_master?.name}</p>
-                        <p className="text-sm text-gray-600 mt-1">Bulan: {monthName}</p>
+                        <p className="mt-1 text-lg font-medium">{selectedSessionData?.course_master?.name}</p>
+                        <p className="mt-1 text-sm text-gray-600">Bulan: {monthName}</p>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 border border-black p-4 text-sm font-medium bg-gray-50/50 print:bg-transparent">
+                    <div className="mb-6 grid grid-cols-2 gap-4 border border-black bg-gray-50/50 p-4 text-sm font-medium print:bg-transparent lg:grid-cols-4">
                         <div className="flex flex-col">
-                            <span className="text-gray-500 text-xs">Sesi Kelas:</span>
+                            <span className="text-xs text-gray-500">Sesi Kelas:</span>
                             <span>{selectedSessionData?.name}</span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-gray-500 text-xs">Instruktur:</span>
+                            <span className="text-xs text-gray-500">Instruktur:</span>
                             <span>_____________________</span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-gray-500 text-xs">Jadwal:</span>
-                            <span>{selectedSessionData?.day_of_week}, Pukul {selectedSessionData?.start_time.slice(0, 5)}</span>
+                            <span className="text-xs text-gray-500">Jadwal:</span>
+                            <span>
+                                {selectedSessionData?.day_of_week}, Pukul {selectedSessionData?.start_time.slice(0, 5)}
+                            </span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-gray-500 text-xs">Ruangan:</span>
+                            <span className="text-xs text-gray-500">Ruangan:</span>
                             <span>_____________________</span>
                         </div>
                     </div>
@@ -161,46 +169,63 @@ export default async function AdminTemplateAbsenPage({
                     <table className="w-full border-collapse border border-black text-sm">
                         <thead className="bg-gray-100 print:bg-transparent">
                             <tr>
-                                <th rowSpan={2} className="border border-black p-2 w-10 text-center">No</th>
-                                <th rowSpan={2} className="border border-black p-2 text-left w-56">Nama Lengkap</th>
-                                <th rowSpan={2} className="border border-black p-2 text-center w-16">Tingkat</th>
-                                <th colSpan={MAX_MEETINGS} className="border border-black p-2 text-center">Tanggal Pertemuan</th>
-                                <th rowSpan={2} className="border border-black p-2 text-center w-24">Keterangan</th>
+                                <th rowSpan={2} className="w-10 border border-black p-2 text-center">
+                                    No
+                                </th>
+                                <th rowSpan={2} className="w-56 border border-black p-2 text-left">
+                                    Nama Lengkap
+                                </th>
+                                <th rowSpan={2} className="w-16 border border-black p-2 text-center">
+                                    Tingkat
+                                </th>
+                                <th colSpan={MAX_MEETINGS} className="border border-black p-2 text-center">
+                                    Tanggal Pertemuan
+                                </th>
+                                <th rowSpan={2} className="w-24 border border-black p-2 text-center">
+                                    Keterangan
+                                </th>
                             </tr>
                             <tr>
-                                {Array.from({ length: MAX_MEETINGS }).map((_, i) => (
-                                    <th key={i} className="border border-black p-2 h-8 text-center w-16 text-gray-400 font-normal border-t-0">_ / _</th>
+                                {Array.from({ length: MAX_MEETINGS }).map((_, index) => (
+                                    <th
+                                        key={index}
+                                        className="h-8 w-16 border border-black border-t-0 p-2 text-center font-normal text-gray-400"
+                                    >
+                                        _ / _
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {students.length > 0 ? students.map((s, i) => (
-                                <tr key={s.id}>
-                                    <td className="border border-black p-2 text-center">{i + 1}</td>
-                                    <td className="border border-black p-2 font-medium">{s.name}</td>
-                                    <td className="border border-black p-2 text-center text-xs">{s.category}</td>
-                                    {Array.from({ length: MAX_MEETINGS }).map((_, i) => (
-                                        <td key={i} className="border border-black p-2"></td>
-                                    ))}
-                                    <td className="border border-black p-2"></td>
-                                </tr>
-                            )) : (
+                            {students.length > 0 ? (
+                                students.map((student, index) => (
+                                    <tr key={student.id}>
+                                        <td className="border border-black p-2 text-center">{index + 1}</td>
+                                        <td className="border border-black p-2 font-medium">{student.name}</td>
+                                        <td className="border border-black p-2 text-center text-xs">{student.category}</td>
+                                        {Array.from({ length: MAX_MEETINGS }).map((_, cellIndex) => (
+                                            <td key={cellIndex} className="border border-black p-2" />
+                                        ))}
+                                        <td className="border border-black p-2" />
+                                    </tr>
+                                ))
+                            ) : (
                                 <tr>
                                     <td colSpan={MAX_MEETINGS + 4} className="border border-black p-8 text-center text-gray-500">
                                         Tidak ada siswa aktif terdaftar di sesi kelas ini.
                                     </td>
                                 </tr>
                             )}
-                            {/* Tambahan baris kosong untuk siswa susulan */}
-                            {Array.from({ length: 3 }).map((_, idx) => (
-                                <tr key={`empty-${idx}`}>
+
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <tr key={`empty-${index}`}>
                                     <td className="border border-black p-2 text-center text-transparent">X</td>
-                                    <td className="border border-black p-2"></td>
-                                    <td className="border border-black p-2"></td>
-                                    {Array.from({ length: MAX_MEETINGS }).map((_, i) => (
-                                        <td key={i} className="border border-black p-2"></td>
+                                    <td className="border border-black p-2" />
+                                    <td className="border border-black p-2" />
+                                    {Array.from({ length: MAX_MEETINGS }).map((_, cellIndex) => (
+                                        <td key={cellIndex} className="border border-black p-2" />
                                     ))}
-                                    <td className="border border-black p-2"></td>
+                                    <td className="border border-black p-2" />
                                 </tr>
                             ))}
                         </tbody>
@@ -209,16 +234,18 @@ export default async function AdminTemplateAbsenPage({
                     <div className="mt-8 flex justify-end print:absolute print:bottom-8 print:right-8">
                         <div className="text-center">
                             <p className="text-sm">Mengetahui,</p>
-                            <div className="h-16"></div>
-                            <p className="font-bold border-t border-black px-4 pt-1 text-sm">( Pengajar Utama )</p>
+                            <div className="h-16" />
+                            <p className="border-t border-black px-4 pt-1 text-sm font-bold">( Pengajar Utama )</p>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="text-center py-16 text-muted-foreground bg-muted/20 border border-dashed border-border/80 rounded-2xl no-print">
-                    <ScrollText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                    <h3 className="h5 mb-1">Preview Lembat Kosong</h3>
-                    <p className="body-sm">Pilih sesi kelas dari form di atas untuk men-generate layout absensi yang siap cetak (A4/F4).</p>
+                <div className="no-print rounded-2xl border border-dashed border-border/80 bg-muted/20 py-16 text-center text-muted-foreground">
+                    <ScrollText className="mx-auto mb-3 h-12 w-12 opacity-20" />
+                    <h3 className="h5 mb-1">Preview Lembar Kosong</h3>
+                    <p className="body-sm">
+                        Pilih sesi kelas dari form di atas untuk men-generate layout absensi yang siap cetak (A4/F4).
+                    </p>
                 </div>
             )}
         </div>

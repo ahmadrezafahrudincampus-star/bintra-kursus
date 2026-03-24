@@ -13,6 +13,27 @@ export interface Announcement {
     created_by: string
 }
 
+async function assertSuperAdmin() {
+    const supabase = await createClient()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { supabase, user: null, error: 'Unauthorized' }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .returns<{ role: string }[]>()
+        .single()
+
+    if (profile?.role !== 'super_admin') {
+        return { supabase, user: null, error: 'Unauthorized' }
+    }
+
+    return { supabase, user, error: null }
+}
+
 /** Siswa/Admin: ambil semua pengumuman aktif */
 export async function getAnnouncements(): Promise<Announcement[]> {
     const supabase = await createClient()
@@ -31,9 +52,10 @@ export async function getAnnouncements(): Promise<Announcement[]> {
 
 /** Admin: semua pengumuman (termasuk nonaktif) */
 export async function getAllAnnouncements(): Promise<Announcement[]> {
-    const supabase = await createClient()
+    const auth = await assertSuperAdmin()
+    if (auth.error) return []
 
-    const { data } = await supabase
+    const { data } = await auth.supabase
         .from('announcements')
         .select('*')
         .order('created_at', { ascending: false })
@@ -48,42 +70,35 @@ export async function createAnnouncement(formData: {
     content: string
     target_session_id?: string | null
 }) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
+    const auth = await assertSuperAdmin()
+    if (auth.error || !auth.user) return { error: 'Unauthorized' }
 
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .returns<{ role: string }[]>()
-        .single()
-    if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
-
-    const { error } = await supabase
+    const { data, error } = await auth.supabase
         .from('announcements')
         .insert({
             title: formData.title,
             content: formData.content,
             target_session_id: formData.target_session_id ?? null,
-            created_by: user.id,
+            created_by: auth.user.id,
             is_active: true,
         } as never)
+        .select('*')
+        .returns<Announcement[]>()
+        .single()
 
     if (error) return { error: error.message }
 
     revalidatePath('/admin/pengumuman')
     revalidatePath('/dashboard')
-    return { success: true }
+    return { success: true, announcement: data }
 }
 
 /** Admin: toggle aktif/nonaktif pengumuman */
 export async function toggleAnnouncement(id: string, isActive: boolean) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
+    const auth = await assertSuperAdmin()
+    if (auth.error) return { error: auth.error }
 
-    const { error } = await supabase
+    const { error } = await auth.supabase
         .from('announcements')
         .update({ is_active: isActive } as never)
         .eq('id', id)
@@ -97,11 +112,10 @@ export async function toggleAnnouncement(id: string, isActive: boolean) {
 
 /** Admin: hapus pengumuman */
 export async function deleteAnnouncement(id: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
+    const auth = await assertSuperAdmin()
+    if (auth.error) return { error: auth.error }
 
-    const { error } = await supabase.from('announcements').delete().eq('id', id)
+    const { error } = await auth.supabase.from('announcements').delete().eq('id', id)
     if (error) return { error: error.message }
 
     revalidatePath('/admin/pengumuman')

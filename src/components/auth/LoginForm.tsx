@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -19,6 +19,10 @@ const loginSchema = z.object({
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
+type LoginFormProps = {
+    redirectTo?: string | null
+    authError?: string | null
+}
 
 function FieldError({ message }: { message?: string }) {
     if (!message) return null
@@ -26,7 +30,7 @@ function FieldError({ message }: { message?: string }) {
     return <p className="text-xs font-medium text-red-500">{message}</p>
 }
 
-export function LoginForm() {
+export function LoginForm({ redirectTo, authError }: LoginFormProps) {
     const [showPassword, setShowPassword] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -45,10 +49,19 @@ export function LoginForm() {
         },
     })
 
+    useEffect(() => {
+        if (authError) {
+            toast.error(authError)
+        }
+    }, [authError])
+
     const onSubmit = async (data: LoginFormData) => {
         setIsLoading(true)
         try {
-            const result = await signIn(data)
+            const result = await signIn({
+                ...data,
+                redirectTo,
+            })
             if (result?.error) {
                 toast.error(result.error)
             }
@@ -61,7 +74,7 @@ export function LoginForm() {
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <AuthSocialButtons mode="login" />
+            <AuthSocialButtons mode="login" redirectTo={redirectTo} />
 
             <div className="flex items-center gap-3 py-1">
                 <div className="h-px flex-1 bg-[color:var(--brand-100)]" />

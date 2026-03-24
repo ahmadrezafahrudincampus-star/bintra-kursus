@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
         request,
     })
@@ -27,20 +27,16 @@ export async function middleware(request: NextRequest) {
         }
     )
 
-    // Refresh session (JANGAN tambahkan kode lain di antara ini)
     const {
         data: { user },
     } = await supabase.auth.getUser()
 
     const { pathname } = request.nextUrl
-
-    // Route yanng memerlukan autentikasi
     const isDashboardRoute = pathname.startsWith('/dashboard')
     const isAdminRoute = pathname.startsWith('/admin')
     const isAuthRoute =
         pathname.startsWith('/login') || pathname.startsWith('/register')
 
-    // Jika belum login dan mengakses dashboard/admin -> redirect ke login
     if (!user && (isDashboardRoute || isAdminRoute)) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
@@ -48,9 +44,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url)
     }
 
-    // Jika sudah login dan mengakses halaman auth -> redirect sesuai role
     if (user && isAuthRoute) {
-        // Ambil role dari tabel profiles
         const { data: profile } = await supabase
             .from('profiles')
             .select('role')
@@ -65,10 +59,10 @@ export async function middleware(request: NextRequest) {
         } else {
             url.pathname = '/dashboard'
         }
+
         return NextResponse.redirect(url)
     }
 
-    // Jika mengakses /admin dan bukan super_admin -> redirect ke dashboard
     if (user && isAdminRoute) {
         const { data: profile } = await supabase
             .from('profiles')

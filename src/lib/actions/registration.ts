@@ -3,6 +3,23 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import type { Database } from '@/types/database'
+
+type RegistrationRpcResponse = {
+    success: boolean
+    error?: string
+}
+
+function callRegistrationRpc(
+    supabase: Awaited<ReturnType<typeof createClient>>,
+    fn: string,
+    args: Record<string, unknown>
+) {
+    return supabase.rpc(fn as never, args as never) as unknown as Promise<{
+        data: RegistrationRpcResponse | null
+        error: { message: string } | null
+    }>
+}
 
 export async function submitRegistration(formData: {
     full_name: string
@@ -46,15 +63,19 @@ export async function submitRegistration(formData: {
         }
     }
 
-    // Insert pendaftaran dengan status PENDING
+    // Insert pendaftaran dengan status PENDING.
+    // Reg number akan dibuat otomatis oleh trigger database.
+    const payload: Database['public']['Tables']['registrations']['Insert'] = {
+        profile_id: user.id,
+        ...formData,
+        status: 'PENDING',
+    }
+
     const { data, error } = await supabase
         .from('registrations')
-        .insert({
-            profile_id: user.id,
-            ...formData,
-            status: 'PENDING',
-        } as any)
+        .insert(payload as never)
         .select()
+        .returns<{ id: string; reg_number: string | null }[]>()
         .single()
 
     if (error) {
@@ -63,13 +84,15 @@ export async function submitRegistration(formData: {
     }
 
     // Log aktivitas
-    await supabase.from('activity_logs').insert({
+    const logPayload: Database['public']['Tables']['activity_logs']['Insert'] = {
         actor_id: user.id,
         action: 'REGISTRATION_SUBMITTED',
         target_type: 'registrations',
-        target_id: (data as any).id,
-        details: { reg_number: (data as any).reg_number },
-    } as any)
+        target_id: data.id,
+        details: { reg_number: data.reg_number ?? null },
+    }
+
+    await supabase.from('activity_logs').insert(logPayload as never)
 
     revalidatePath('/dashboard')
     redirect('/dashboard?registered=1')
@@ -112,101 +135,17 @@ export async function approveRegistration(registrationId: string, sessionId: str
 
     if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
 
-    // Ambil data registrasi
-    const { data: reg, error: regError } = await supabase
-        .from('registrations')
-        .select('*')
-        .eq('id', registrationId)
-        .returns<any[]>()
-        .single()
+    const { data, error } = await callRegistrationRpc(supabase, 'admin_approve_registration', {
+            p_registration_id: registrationId,
+            p_session_id: sessionId,
+        })
 
-    if (regError || !reg) return { error: 'Data pendaftaran tidak ditemukan' }
-
-    // 1. Update registrasi -> APPROVED
-    const { error: updateErr } = await supabase
-        .from('registrations')
-        .update({
-            status: 'APPROVED',
-            reviewed_by: user.id,
-            reviewed_at: new Date().toISOString(),
-        } as never)
-        .eq('id', registrationId)
-
-    if (updateErr) return { error: updateErr.message }
-
-    // 2. Update role user -> student
-    const { error: roleErr } = await supabase
-        .from('profiles')
-        .update({ role: 'student' } as never)
-        .eq('id', reg.profile_id)
-
-    if (roleErr) return { error: roleErr.message }
-
-    // 3. Buat enrollment
-    const { data: enrollment, error: enrollErr } = await supabase
-        .from('student_enrollments')
-        .insert({
-            profile_id: reg.profile_id,
-            session_id: sessionId,
-            registration_id: registrationId,
-            participant_category: reg.participant_category,
-            status: 'ACTIVE',
-        } as any)
-        .select()
-        .single()
-
-    if (enrollErr) return { error: enrollErr.message }
-
-    // 4. Cek kapasitas sesi
-    const { data: session } = await supabase
-        .from('sessions')
-        .select('max_capacity, current_count')
-        .eq('id', sessionId)
-        .returns<{ max_capacity: number; current_count: number }[]>()
-        .single()
-
-    if (session && session.current_count >= session.max_capacity) {
-        return { error: 'Sesi sudah penuh. Pilih sesi lain.' }
-    }
-
-    // 5. Generate invoice pertama (bulan berjalan)
-    const now = new Date()
-    const dueDate = new Date(now.getFullYear(), now.getMonth() + 1, 10) // Due tanggal 10 bulan depan
-
-    // Tentukan harga berdasar kategori
-    const { data: course } = await supabase
-        .from('course_master')
-        .select('price_smp, price_sma, price_umum')
-        .eq('id', reg.course_id)
-        .returns<{ price_smp: number; price_sma: number; price_umum: number }[]>()
-        .single()
-
-    let amount = course?.price_umum || 25000
-    if (reg.participant_category === 'SMP') amount = course?.price_smp || 15000
-    if (reg.participant_category === 'SMA') amount = course?.price_sma || 20000
-
-    const { error: invoiceErr } = await supabase.from('invoices').insert({
-        profile_id: reg.profile_id,
-        enrollment_id: (enrollment as any).id,
-        amount,
-        period_month: now.getMonth() + 1,
-        period_year: now.getFullYear(),
-        due_date: dueDate.toISOString().split('T')[0],
-        status: 'UNPAID',
-    } as any)
-
-    if (invoiceErr) return { error: invoiceErr.message }
-
-    // 6. Log aktivitas
-    await supabase.from('activity_logs').insert({
-        actor_id: user.id,
-        action: 'REGISTRATION_APPROVED',
-        target_type: 'registrations',
-        target_id: registrationId,
-        details: { profile_id: reg.profile_id, session_id: sessionId },
-    } as any)
+    if (error) return { error: error.message }
+    if (!data?.success) return { error: data?.error ?? 'Gagal menyetujui pendaftaran' }
 
     revalidatePath('/admin/pendaftar')
+    revalidatePath('/admin/siswa')
+    revalidatePath('/admin/keuangan')
     return { success: true }
 }
 
@@ -215,25 +154,17 @@ export async function rejectRegistration(registrationId: string, reason: string)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
-    const { error } = await supabase
-        .from('registrations')
-        .update({
-            status: 'REJECTED',
-            rejection_reason: reason,
-            reviewed_by: user.id,
-            reviewed_at: new Date().toISOString(),
-        } as never)
-        .eq('id', registrationId)
+    const trimmedReason = reason.trim()
+    if (!trimmedReason) return { error: 'Alasan penolakan wajib diisi' }
+    if (trimmedReason.length < 10) return { error: 'Alasan penolakan minimal 10 karakter' }
+
+    const { data, error } = await callRegistrationRpc(supabase, 'admin_reject_registration', {
+            p_registration_id: registrationId,
+            p_reason: trimmedReason,
+        })
 
     if (error) return { error: error.message }
-
-    await supabase.from('activity_logs').insert({
-        actor_id: user.id,
-        action: 'REGISTRATION_REJECTED',
-        target_type: 'registrations',
-        target_id: registrationId,
-        details: { reason },
-    } as any)
+    if (!data?.success) return { error: data?.error ?? 'Gagal menolak pendaftaran' }
 
     revalidatePath('/admin/pendaftar')
     return { success: true }

@@ -1,19 +1,30 @@
 'use client'
 
-import { useState } from 'react'
-import { approveRegistration, rejectRegistration } from '@/lib/actions/registration'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useMemo, useState, useTransition } from 'react'
+import { CheckCircle, ChevronDown, ChevronUp, Loader2, TriangleAlert, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { approveRegistration, rejectRegistration } from '@/lib/actions/registration'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-react'
 
-interface Registration {
+export interface RegistrationReviewItem {
     id: string
     full_name: string
     reg_number: string | null
@@ -29,10 +40,9 @@ interface Registration {
     experience: string | null
     goals: string | null
     course_master: { id: string; name: string } | null
-    sessions: { id: string; name: string; day_of_week: string; start_time: string; end_time: string } | null
 }
 
-interface Session {
+export interface SessionAssignmentOption {
     id: string
     name: string
     day_of_week: string
@@ -46,98 +56,159 @@ export function ApproveRejectClient({
     registration,
     availableSessions,
 }: {
-    registration: Registration
-    availableSessions: Session[]
+    registration: RegistrationReviewItem
+    availableSessions: SessionAssignmentOption[]
 }) {
+    const router = useRouter()
     const [isExpanded, setIsExpanded] = useState(false)
     const [showApproveDialog, setShowApproveDialog] = useState(false)
     const [showRejectDialog, setShowRejectDialog] = useState(false)
     const [selectedSession, setSelectedSession] = useState('')
     const [rejectReason, setRejectReason] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
+    const [isPending, startTransition] = useTransition()
 
-    const handleApprove = async () => {
-        if (!selectedSession) {
-            toast.error('Pilih sesi kelas terlebih dahulu')
-            return
-        }
-        setIsLoading(true)
-        const result = await approveRegistration(registration.id, selectedSession)
-        setIsLoading(false)
-        if (result.error) {
-            toast.error(result.error)
-        } else {
-            toast.success(`${registration.full_name} berhasil disetujui dan dijadwalkan ke kelas.`)
-            setShowApproveDialog(false)
-        }
+    const sortedSessions = useMemo(
+        () =>
+            [...availableSessions].sort((a, b) => {
+                if (a.day_of_week !== b.day_of_week) return a.day_of_week.localeCompare(b.day_of_week)
+                return a.start_time.localeCompare(b.start_time)
+            }),
+        [availableSessions]
+    )
+
+    const selectedSessionData =
+        sortedSessions.find((session) => session.id === selectedSession) ?? null
+    const availableCount = sortedSessions.filter(
+        (session) => session.current_count < session.max_capacity
+    ).length
+    const hasSession = sortedSessions.length > 0
+    const hasAvailableSession = availableCount > 0
+    const selectedSessionFull =
+        selectedSessionData !== null &&
+        selectedSessionData.current_count >= selectedSessionData.max_capacity
+
+    const resetApproveDialog = () => {
+        setShowApproveDialog(false)
+        setSelectedSession('')
     }
 
-    const handleReject = async () => {
-        if (!rejectReason.trim()) {
-            toast.error('Alasan penolakan wajib diisi')
+    const resetRejectDialog = () => {
+        setShowRejectDialog(false)
+        setRejectReason('')
+    }
+
+    const handleApprove = () => {
+        if (!selectedSession) {
+            toast.error('Pilih sesi kelas terlebih dahulu.')
             return
         }
-        setIsLoading(true)
-        const result = await rejectRegistration(registration.id, rejectReason)
-        setIsLoading(false)
-        if (result.error) {
-            toast.error(result.error)
-        } else {
-            toast.success('Pendaftaran ditolak.')
-            setShowRejectDialog(false)
+
+        if (selectedSessionFull) {
+            toast.error('Sesi yang dipilih sudah penuh. Pilih sesi lain atau buat sesi baru.')
+            return
         }
+
+        startTransition(async () => {
+            const result = await approveRegistration(registration.id, selectedSession)
+
+            if ('error' in result) {
+                toast.error(result.error)
+                return
+            }
+
+            toast.success(`${registration.full_name} berhasil disetujui dan dimasukkan ke sesi.`)
+            resetApproveDialog()
+            router.refresh()
+        })
+    }
+
+    const handleReject = () => {
+        const trimmedReason = rejectReason.trim()
+        if (!trimmedReason) {
+            toast.error('Alasan penolakan wajib diisi.')
+            return
+        }
+
+        startTransition(async () => {
+            const result = await rejectRegistration(registration.id, trimmedReason)
+
+            if ('error' in result) {
+                toast.error(result.error)
+                return
+            }
+
+            toast.success('Pendaftaran berhasil ditolak.')
+            resetRejectDialog()
+            router.refresh()
+        })
     }
 
     return (
-        <div className="border border-border/60 rounded-xl overflow-hidden">
-            {/* Header */}
+        <div className="overflow-hidden rounded-xl border border-border/60">
             <div
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-muted/30"
+                onClick={() => setIsExpanded((current) => !current)}
             >
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-yellow-100 text-yellow-700 flex items-center justify-center font-bold text-sm">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-yellow-100 text-sm font-bold text-yellow-700">
                         {registration.full_name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <p className="font-medium text-sm">{registration.full_name}</p>
+                        <p className="text-sm font-medium">{registration.full_name}</p>
                         <p className="text-xs text-muted-foreground">
-                            {registration.course_master?.name ?? '—'} · {registration.participant_category} · {registration.school_name}
+                            {registration.course_master?.name ?? '-'} · {registration.participant_category} ·{' '}
+                            {registration.school_name || 'Sekolah belum diisi'}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2">
+                    <div className="hidden items-center gap-2 sm:flex">
                         <Button
+                            type="button"
                             size="sm"
                             variant="outline"
-                            className="text-green-600 border-green-200 hover:bg-green-50"
-                            onClick={(e) => { e.stopPropagation(); setShowApproveDialog(true) }}
+                            className="border-green-200 text-green-600 hover:bg-green-50"
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                setShowApproveDialog(true)
+                            }}
                         >
-                            <CheckCircle className="w-3.5 h-3.5 mr-1" /> Setujui
+                            <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                            Setujui
                         </Button>
                         <Button
+                            type="button"
                             size="sm"
                             variant="outline"
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                            onClick={(e) => { e.stopPropagation(); setShowRejectDialog(true) }}
+                            className="border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                setShowRejectDialog(true)
+                            }}
                         >
-                            <XCircle className="w-3.5 h-3.5 mr-1" /> Tolak
+                            <XCircle className="mr-1 h-3.5 w-3.5" />
+                            Tolak
                         </Button>
                     </div>
-                    {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                    {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
                 </div>
             </div>
 
-            {/* Details */}
-            {isExpanded && (
-                <div className="border-t border-border/60 p-4 bg-muted/20">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+            {isExpanded ? (
+                <div className="border-t border-border/60 bg-muted/20 p-4">
+                    <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
                         {[
-                            { label: 'Jenis Kelamin', value: registration.gender === 'L' ? 'Laki-laki' : 'Perempuan' },
+                            {
+                                label: 'Jenis Kelamin',
+                                value: registration.gender === 'L' ? 'Laki-laki' : 'Perempuan',
+                            },
                             { label: 'No. HP', value: registration.phone },
                             { label: 'Email', value: registration.email ?? '-' },
-                            { label: 'Sekolah', value: registration.school_name },
+                            { label: 'Sekolah', value: registration.school_name || '-' },
                             { label: 'Kelas', value: registration.class_name ?? '-' },
                             { label: 'Orang Tua', value: registration.parent_name ?? '-' },
                         ].map((item) => (
@@ -147,33 +218,57 @@ export function ApproveRejectClient({
                             </div>
                         ))}
                     </div>
-                    {registration.address && (
+
+                    {registration.address ? (
                         <div className="mt-3 text-sm">
                             <p className="text-xs text-muted-foreground">Alamat</p>
                             <p>{registration.address}</p>
                         </div>
-                    )}
-                    {registration.goals && (
+                    ) : null}
+
+                    {registration.experience ? (
+                        <div className="mt-3 text-sm">
+                            <p className="text-xs text-muted-foreground">Pengalaman</p>
+                            <p>{registration.experience}</p>
+                        </div>
+                    ) : null}
+
+                    {registration.goals ? (
                         <div className="mt-3 text-sm">
                             <p className="text-xs text-muted-foreground">Tujuan Kursus</p>
                             <p>{registration.goals}</p>
                         </div>
-                    )}
+                    ) : null}
 
-                    {/* Mobile Actions */}
-                    <div className="sm:hidden flex gap-2 mt-4">
-                        <Button size="sm" className="flex-1 text-green-600 border-green-200 hover:bg-green-50" variant="outline" onClick={() => setShowApproveDialog(true)}>
-                            <CheckCircle className="w-3.5 h-3.5 mr-1" /> Setujui
+                    <div className="mt-4 flex gap-2 sm:hidden">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-green-200 text-green-600 hover:bg-green-50"
+                            onClick={() => setShowApproveDialog(true)}
+                        >
+                            <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                            Setujui
                         </Button>
-                        <Button size="sm" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" variant="outline" onClick={() => setShowRejectDialog(true)}>
-                            <XCircle className="w-3.5 h-3.5 mr-1" /> Tolak
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => setShowRejectDialog(true)}
+                        >
+                            <XCircle className="mr-1 h-3.5 w-3.5" />
+                            Tolak
                         </Button>
                     </div>
                 </div>
-            )}
+            ) : null}
 
-            {/* Approve Dialog */}
-            <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+            <Dialog
+                open={showApproveDialog}
+                onOpenChange={(open) => (open ? setShowApproveDialog(true) : resetApproveDialog())}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Setujui Pendaftaran</DialogTitle>
@@ -181,67 +276,115 @@ export function ApproveRejectClient({
                     <div className="space-y-4 py-2">
                         <p className="text-sm text-muted-foreground">
                             Menyetujui <strong>{registration.full_name}</strong> ke program{' '}
-                            <strong>{registration.course_master?.name}</strong>. Pilih sesi kelas:
+                            <strong>{registration.course_master?.name ?? '-'}</strong>. Pilih sesi kelas yang masih tersedia.
                         </p>
+
                         <div className="space-y-2">
-                            <Label>Sesi Kelas *</Label>
-                            {availableSessions.length === 0 ? (
-                                <p className="text-sm text-orange-600 border border-orange-200 bg-orange-50 rounded-lg p-3">
-                                    Tidak ada sesi tersedia untuk program ini. Tambah sesi di menu Kelola Sesi terlebih dahulu.
-                                </p>
+                            <Label>Sesi Kelas</Label>
+                            {!hasSession ? (
+                                <div className="space-y-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
+                                    <div className="flex items-start gap-2">
+                                        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                                        <p>Belum ada sesi aktif untuk program ini. Buat sesi baru sebelum menyetujui pendaftar.</p>
+                                    </div>
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href="/admin/jadwal">Buka Kelola Jadwal</Link>
+                                    </Button>
+                                </div>
                             ) : (
-                                <Select onValueChange={(val: string | null) => setSelectedSession(val ?? '')}>
-                                    <SelectTrigger><SelectValue placeholder="Pilih sesi kelas" /></SelectTrigger>
-                                    <SelectContent>
-                                        {availableSessions.map((s) => (
-                                            <SelectItem key={s.id} value={s.id} disabled={s.current_count >= s.max_capacity}>
-                                                {s.name} — {s.day_of_week} {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
-                                                {' '}({s.current_count}/{s.max_capacity})
-                                                {s.current_count >= s.max_capacity && ' [PENUH]'}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <>
+                                    <Select value={selectedSession} onValueChange={(value) => setSelectedSession(value ?? '')}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih sesi kelas" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {sortedSessions.map((session) => {
+                                                const isFull = session.current_count >= session.max_capacity
+                                                return (
+                                                    <SelectItem key={session.id} value={session.id} disabled={isFull}>
+                                                        {session.name} - {session.day_of_week} {session.start_time.slice(0, 5)}-{session.end_time.slice(0, 5)} ({session.current_count}/{session.max_capacity})
+                                                        {isFull ? ' [PENUH]' : ''}
+                                                    </SelectItem>
+                                                )
+                                            })}
+                                        </SelectContent>
+                                    </Select>
+
+                                    <p className="text-xs text-muted-foreground">
+                                        {availableCount}/{sortedSessions.length} sesi masih punya slot.
+                                    </p>
+                                </>
                             )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            ℹ Setelah disetujui: akun siswa diaktifkan, siswa masuk ke sesi yang dipilih, dan invoice iuran pertama dibuat otomatis.
-                        </p>
+
+                        {hasSession && !hasAvailableSession ? (
+                            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
+                                Semua sesi untuk program ini sedang penuh. Disarankan buat sesi baru dengan hari atau jam berbeda.
+                            </div>
+                        ) : null}
+
+                        {selectedSessionData ? (
+                            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
+                                <p className="font-medium">{selectedSessionData.name}</p>
+                                <p className="text-muted-foreground">
+                                    {selectedSessionData.day_of_week} {selectedSessionData.start_time.slice(0, 5)}-{selectedSessionData.end_time.slice(0, 5)}
+                                </p>
+                                <p className="mt-1">
+                                    Kapasitas saat ini: {selectedSessionData.current_count}/{selectedSessionData.max_capacity}
+                                </p>
+                            </div>
+                        ) : null}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowApproveDialog(false)}>Batal</Button>
-                        <Button onClick={handleApprove} disabled={isLoading || !selectedSession} className="bg-green-600 hover:bg-green-700">
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Setujui & Aktifkan'}
+                        <Button type="button" variant="outline" onClick={resetApproveDialog}>
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleApprove}
+                            disabled={isPending || !selectedSession || selectedSessionFull}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Setujui & Assign'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Reject Dialog */}
-            <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+            <Dialog
+                open={showRejectDialog}
+                onOpenChange={(open) => (open ? setShowRejectDialog(true) : resetRejectDialog())}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Tolak Pendaftaran</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <p className="text-sm text-muted-foreground">
-                            Menolak pendaftaran <strong>{registration.full_name}</strong>. Akun user tetap ada namun tidak aktif sebagai siswa.
+                            Menolak pendaftaran <strong>{registration.full_name}</strong>. Tulis alasan agar admin lain dan siswa memahami keputusan ini.
                         </p>
                         <div className="space-y-2">
-                            <Label htmlFor="reject-reason">Alasan Penolakan *</Label>
+                            <Label htmlFor="reject-reason">Alasan Penolakan</Label>
                             <Textarea
                                 id="reject-reason"
                                 value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
-                                placeholder="Jelaskan alasan penolakan (misal: kuota penuh, data tidak lengkap, dll.)"
-                                rows={3}
+                                onChange={(event) => setRejectReason(event.target.value)}
+                                placeholder="Contoh: kuota sesi penuh, data belum lengkap, atau dokumen belum valid."
+                                rows={4}
                             />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Batal</Button>
-                        <Button variant="destructive" onClick={handleReject} disabled={isLoading || !rejectReason.trim()}>
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Tolak Pendaftaran'}
+                        <Button type="button" variant="outline" onClick={resetRejectDialog}>
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={handleReject}
+                            disabled={isPending || rejectReason.trim().length < 10}
+                        >
+                            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Tolak Pendaftaran'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

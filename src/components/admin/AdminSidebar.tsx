@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import type { Profile } from '@/types/database'
 
 const ADMIN_NAV = [
@@ -35,26 +34,28 @@ const ADMIN_NAV = [
 
     { label: 'Konten Pokok', divider: true },
     { href: '/admin/pengumuman', label: 'Pengumuman', icon: Megaphone },
-
-    // Dipisah di bawah agar UX tidak tercampur aduk antara matang & stub
-    { label: 'Segera Hadir (Tahap 7)', divider: true },
-    { href: '/admin/sesi', label: 'Sesi Kelas', icon: Calendar, badge: 'Stub' },
-    { href: '/admin/user', label: 'Kelola User', icon: Users, badge: 'Stub' },
-    { href: '/admin/logs', label: 'Log Aktivitas', icon: Shield, badge: 'Stub' },
-    { href: '/admin/pengaturan', label: 'Pengaturan', icon: Settings, badge: 'Stub' },
+    { label: 'Administrasi', divider: true },
+    { href: '/admin/sesi', label: 'Sesi Kelas', icon: Calendar },
+    { href: '/admin/user', label: 'Kelola User', icon: Users },
+    { href: '/admin/logs', label: 'Log Aktivitas', icon: Shield },
+    { href: '/admin/pengaturan', label: 'Pengaturan', icon: Settings },
 ]
 
-export function AdminSidebar({ profile }: { profile: Pick<Profile, 'full_name' | 'role'> }) {
-    const pathname = usePathname()
-    const [isMobileOpen, setIsMobileOpen] = useState(false)
-
-    const initials = profile.full_name
-        .split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
-
-    const SidebarContent = () => (
+function AdminSidebarContent({
+    initials,
+    fullName,
+    pathname,
+    onNavigate,
+}: {
+    initials: string
+    fullName: string
+    pathname: string
+    onNavigate: () => void
+}) {
+    return (
         <div className="flex flex-col h-full">
             <div className="p-5 border-b border-sidebar-border">
-                <Link href="/" className="flex items-center gap-2.5 font-bold text-sidebar-foreground" onClick={() => setIsMobileOpen(false)}>
+                <Link href="/" className="flex items-center gap-2.5 font-bold text-sidebar-foreground" onClick={onNavigate}>
                     <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center text-white text-sm font-bold">K</div>
                     <div>
                         <span className="block">Kursus Komputer</span>
@@ -69,7 +70,7 @@ export function AdminSidebar({ profile }: { profile: Pick<Profile, 'full_name' |
                         <AvatarFallback className="bg-sidebar-primary text-white text-sm font-bold">{initials}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.full_name}</p>
+                        <p className="text-sm font-medium text-sidebar-foreground truncate">{fullName}</p>
                         <p className="text-xs text-sidebar-foreground/50 truncate">Super Admin</p>
                     </div>
                 </div>
@@ -93,7 +94,7 @@ export function AdminSidebar({ profile }: { profile: Pick<Profile, 'full_name' |
                         <Link
                             key={item.href}
                             href={item.href!}
-                            onClick={() => setIsMobileOpen(false)}
+                            onClick={onNavigate}
                             className={cn(
                                 'flex items-center gap-3 px-3 h-10 rounded-lg text-sm transition-hover group',
                                 isActive
@@ -101,16 +102,9 @@ export function AdminSidebar({ profile }: { profile: Pick<Profile, 'full_name' |
                                     : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                             )}
                         >
-                            <Icon className={cn('w-4 h-4 flex-shrink-0', item.badge && !isActive && 'opacity-50 group-hover:opacity-100')} />
-                            <span className={cn('flex-1 truncate', item.badge && !isActive && 'opacity-60 group-hover:opacity-100')}>{item.label}</span>
-
-                            {item.badge && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-sidebar-border text-sidebar-foreground/60 border-none font-medium">
-                                    {item.badge}
-                                </Badge>
-                            )}
-
-                            {isActive && !item.badge && <ChevronRight className="w-3.5 h-3.5 opacity-50" />}
+                            <Icon className="w-4 h-4 flex-shrink-0" />
+                            <span className="flex-1 truncate">{item.label}</span>
+                            {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-50" />}
                         </Link>
                     )
                 })}
@@ -126,6 +120,14 @@ export function AdminSidebar({ profile }: { profile: Pick<Profile, 'full_name' |
             </div>
         </div>
     )
+}
+
+export function AdminSidebar({ profile }: { profile: Pick<Profile, 'full_name' | 'role'> }) {
+    const pathname = usePathname()
+    const [isMobileOpen, setIsMobileOpen] = useState(false)
+
+    const initials = profile.full_name
+        .split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
 
     return (
         <>
@@ -136,14 +138,24 @@ export function AdminSidebar({ profile }: { profile: Pick<Profile, 'full_name' |
             {isMobileOpen && <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setIsMobileOpen(false)} />}
 
             <aside className="hidden md:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-shrink-0 sticky top-0 h-screen overflow-hidden">
-                <SidebarContent />
+                <AdminSidebarContent
+                    initials={initials}
+                    fullName={profile.full_name}
+                    pathname={pathname}
+                    onNavigate={() => setIsMobileOpen(false)}
+                />
             </aside>
 
             <aside className={cn(
                 'fixed inset-y-0 left-0 z-50 w-72 bg-sidebar flex flex-col md:hidden transform transition-transform duration-300',
                 isMobileOpen ? 'translate-x-0' : '-translate-x-full'
             )}>
-                <SidebarContent />
+                <AdminSidebarContent
+                    initials={initials}
+                    fullName={profile.full_name}
+                    pathname={pathname}
+                    onNavigate={() => setIsMobileOpen(false)}
+                />
             </aside>
         </>
     )

@@ -8,13 +8,14 @@ import {
     ClipboardList, CheckCircle, XCircle, Clock, ArrowRight,
     Calendar, BookOpen, CreditCard, UserCheck, AlertCircle,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type { Metadata } from 'next'
 
 import type { Profile } from '@/types/database'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon; badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
     PENDING: { label: 'Menunggu Review', color: 'bg-yellow-50 border-yellow-200 text-yellow-800', icon: Clock, badgeVariant: 'outline' },
     APPROVED: { label: 'Disetujui', color: 'bg-green-50 border-green-200 text-green-800', icon: CheckCircle, badgeVariant: 'default' },
     REJECTED: { label: 'Ditolak', color: 'bg-red-50 border-red-200 text-red-800', icon: XCircle, badgeVariant: 'destructive' },
@@ -98,7 +99,7 @@ export default async function DashboardPage() {
             {/* Header */}
             <div>
                 <h1 className="h2 mb-1">
-                    Halo, {profile.full_name.split(' ')[0]}! 👋
+                    Halo, {profile.full_name.split(' ')[0]}!
                 </h1>
                 <p className="body-sm text-muted-foreground mt-1">
                     {isStudent ? 'Selamat belajar hari ini!' : 'Pantau status pendaftaran Anda di sini.'}
@@ -162,21 +163,21 @@ export default async function DashboardPage() {
 
                                     {reg.status === 'PENDING' && (
                                         <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 text-sm">
-                                            <p className="label-md text-warning-foreground">⏳ Sedang Diproses</p>
-                                            <p className="body-sm mt-1 text-muted-foreground">Admin akan mereview pendaftaran Anda dalam 1–2 hari kerja. Kami akan menghubungi Anda melalui nomor HP yang terdaftar.</p>
+                                            <p className="label-md text-warning-foreground">Sedang Diproses</p>
+                                            <p className="body-sm mt-1 text-muted-foreground">Admin akan mereview pendaftaran Anda dalam 1-2 hari kerja. Kami akan menghubungi Anda melalui nomor HP yang terdaftar.</p>
                                         </div>
                                     )}
 
                                     {reg.status === 'APPROVED' && (
                                         <div className="bg-success/10 border border-success/30 rounded-xl p-3 text-sm">
-                                            <p className="label-md text-success-foreground">🎉 Pendaftaran Disetujui!</p>
+                                            <p className="label-md text-success-foreground">Pendaftaran Disetujui</p>
                                             <p className="body-sm mt-1 text-muted-foreground">Akun Anda sudah diaktifkan sebagai siswa. Silakan refresh halaman untuk melihat dashboard siswa lengkap.</p>
                                         </div>
                                     )}
 
                                     {reg.status === 'REJECTED' && (
                                         <div className="bg-red-100/50 border border-red-200 rounded-lg p-3 text-sm">
-                                            <p className="font-medium">❌ Pendaftaran Ditolak</p>
+                                                <p className="font-medium">Pendaftaran Ditolak</p>
                                             {reg.rejection_reason && (
                                                 <p className="opacity-80 text-xs mt-1">Alasan: {reg.rejection_reason}</p>
                                             )}
@@ -236,7 +237,7 @@ export default async function DashboardPage() {
                                     <div>
                                         <p className="label-sm text-muted-foreground uppercase tracking-wider mb-0.5">Kehadiran</p>
                                         <p className="h5 leading-tight">
-                                            {attendanceStats ? `${attendanceStats.percent}%` : '—'}
+                                            {attendanceStats ? `${attendanceStats.percent}%` : '-'}
                                         </p>
                                     </div>
                                 </div>

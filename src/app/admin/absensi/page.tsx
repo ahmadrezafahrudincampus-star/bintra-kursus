@@ -139,7 +139,6 @@ export default async function AdminAbsensiPage({
                             sessionId={selectedSession}
                             date={selectedDate}
                             meetingNumber={selectedMeeting}
-                            sessions={sessions}
                         />
                     </CardContent>
                 </Card>

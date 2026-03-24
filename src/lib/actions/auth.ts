@@ -2,7 +2,8 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { resolvePostLoginRedirect } from '@/lib/auth/redirect'
+import type { Database } from '@/types/database'
 
 export async function signUp(formData: {
     email: string
@@ -37,7 +38,7 @@ export async function signUp(formData: {
     redirect('/dashboard')
 }
 
-export async function signIn(formData: { email: string; password: string }) {
+export async function signIn(formData: { email: string; password: string; redirectTo?: string | null }) {
     const supabase = await createClient()
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -57,11 +58,12 @@ export async function signIn(formData: { email: string; password: string }) {
         .returns<{ role: string }[]>()
         .single()
 
-    if (profile?.role === 'super_admin') {
-        redirect('/admin')
-    }
-
-    redirect('/dashboard')
+    redirect(
+        resolvePostLoginRedirect({
+            role: profile?.role,
+            redirectTo: formData.redirectTo,
+        })
+    )
 }
 
 export async function signOut() {
@@ -96,7 +98,7 @@ export async function getProfile() {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .returns<any>()
+        .returns<Database['public']['Tables']['profiles']['Row'][]>()
         .single()
 
     return profile

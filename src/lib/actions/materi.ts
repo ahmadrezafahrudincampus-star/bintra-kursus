@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { CourseMaterial } from '@/types/database'
+import type { CourseMaterial, Database } from '@/types/database'
 
 const MATERIALS_BUCKET = 'course-materials'
 
@@ -85,7 +85,7 @@ export async function createMateri(formData: {
         .single()
     if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
 
-    const payload: CourseMaterial['Insert'] = {
+    const payload: Database['public']['Tables']['course_materials']['Insert'] = {
         course_id: formData.course_id,
         title: formData.title,
         description: formData.description ?? null,
@@ -98,7 +98,7 @@ export async function createMateri(formData: {
 
     const { data, error } = await supabase
         .from('course_materials')
-        .insert(payload)
+        .insert(payload as never)
         .select('*')
         .returns<CourseMaterial[]>()
         .single()
@@ -124,11 +124,11 @@ export async function toggleMateriPublish(id: string, isPublished: boolean) {
         .single()
     if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
 
-    const payload: CourseMaterial['Update'] = { is_published: isPublished }
+    const payload: Database['public']['Tables']['course_materials']['Update'] = { is_published: isPublished }
 
     const { error } = await supabase
         .from('course_materials')
-        .update(payload)
+        .update(payload as never)
         .eq('id', id)
 
     if (error) return { error: error.message }

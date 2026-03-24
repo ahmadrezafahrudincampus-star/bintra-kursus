@@ -352,6 +352,42 @@ export type Database = {
                 }
                 Update: never
             }
+            media_assets: {
+                Row: {
+                    id: string
+                    file_name: string
+                    file_path: string
+                    public_url: string
+                    alt_text: string | null
+                    mime_type: string | null
+                    size_bytes: number | null
+                    category: string | null
+                    uploaded_by: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    file_name: string
+                    file_path: string
+                    public_url: string
+                    alt_text?: string | null
+                    mime_type?: string | null
+                    size_bytes?: number | null
+                    category?: string | null
+                    uploaded_by?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    file_name?: string
+                    file_path?: string
+                    public_url?: string
+                    alt_text?: string | null
+                    mime_type?: string | null
+                    size_bytes?: number | null
+                    category?: string | null
+                    uploaded_by?: string | null
+                }
+            }
             announcements: {
                 Row: {
                     id: string
@@ -376,6 +412,256 @@ export type Database = {
                     content?: string
                     target_session_id?: string | null
                     is_active?: boolean
+                }
+            }
+            landing_page_content: {
+                Row: {
+                    id: string
+                    site_name: string
+                    navbar_logo_text: string
+                    navbar_logo_image_url: string | null
+                    navbar_logo_image_alt: string | null
+                    navigation_items: Json
+                    hero_badge: string
+                    hero_badge_icon: string | null
+                    hero_title_prefix: string
+                    hero_title_accent: string
+                    hero_title_suffix: string
+                    hero_description: string
+                    hero_primary_cta_text: string | null
+                    hero_primary_cta_url: string | null
+                    hero_secondary_cta_text: string | null
+                    hero_secondary_cta_url: string | null
+                    hero_image_url: string | null
+                    hero_image_alt: string | null
+                    hero_floating_cards: Json
+                    stats_items: Json
+                    why_badge: string | null
+                    why_title: string | null
+                    why_description: string | null
+                    why_items: Json
+                    programs_badge: string | null
+                    programs_title: string | null
+                    programs_description: string | null
+                    program_items: Json
+                    showcase_badge: string | null
+                    showcase_title: string | null
+                    showcase_description: string | null
+                    showcase_cta_text: string | null
+                    showcase_cta_url: string | null
+                    showcase_features: Json
+                    showcase_images: Json
+                    pricing_badge: string | null
+                    pricing_title: string | null
+                    pricing_description: string | null
+                    pricing_note: string | null
+                    pricing_plans: Json
+                    flow_badge: string | null
+                    flow_title: string | null
+                    flow_description: string | null
+                    flow_steps: Json
+                    testimonials_badge: string | null
+                    testimonials_title: string | null
+                    testimonials_description: string | null
+                    testimonials_items: Json
+                    faq_badge: string | null
+                    faq_title: string
+                    faq_description: string
+                    faq_items: Json
+                    cta_title: string | null
+                    cta_description: string | null
+                    cta_primary_text: string | null
+                    cta_primary_url: string | null
+                    cta_secondary_text: string | null
+                    cta_secondary_url: string | null
+                    footer_description: string | null
+                    footer_program_title: string | null
+                    contact_phone: string | null
+                    contact_email: string | null
+                    contact_address: string | null
+                    contact_hours: string | null
+                    social_links: Json
+                    footer_quick_links: Json
+                    footer_program_links: Json
+                    footer_copyright: string | null
+                    footer_policy_text: string | null
+                    footer_policy_url: string | null
+                    footer_terms_text: string | null
+                    footer_terms_url: string | null
+                    seo_meta_title: string | null
+                    seo_meta_description: string | null
+                    seo_meta_keywords: string | null
+                    seo_og_title: string | null
+                    seo_og_description: string | null
+                    seo_og_image_url: string | null
+                    seo_favicon_url: string | null
+                    updated_by: string | null
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    site_name: string
+                    navbar_logo_text: string
+                    navbar_logo_image_url?: string | null
+                    navbar_logo_image_alt?: string | null
+                    navigation_items?: Json
+                    hero_badge: string
+                    hero_badge_icon?: string | null
+                    hero_title_prefix: string
+                    hero_title_accent: string
+                    hero_title_suffix: string
+                    hero_description: string
+                    hero_primary_cta_text?: string | null
+                    hero_primary_cta_url?: string | null
+                    hero_secondary_cta_text?: string | null
+                    hero_secondary_cta_url?: string | null
+                    hero_image_url?: string | null
+                    hero_image_alt?: string | null
+                    hero_floating_cards?: Json
+                    stats_items?: Json
+                    why_badge?: string | null
+                    why_title?: string | null
+                    why_description?: string | null
+                    why_items?: Json
+                    programs_badge?: string | null
+                    programs_title?: string | null
+                    programs_description?: string | null
+                    program_items?: Json
+                    showcase_badge?: string | null
+                    showcase_title?: string | null
+                    showcase_description?: string | null
+                    showcase_cta_text?: string | null
+                    showcase_cta_url?: string | null
+                    showcase_features?: Json
+                    showcase_images?: Json
+                    pricing_badge?: string | null
+                    pricing_title?: string | null
+                    pricing_description?: string | null
+                    pricing_note?: string | null
+                    pricing_plans?: Json
+                    flow_badge?: string | null
+                    flow_title?: string | null
+                    flow_description?: string | null
+                    flow_steps?: Json
+                    testimonials_badge?: string | null
+                    testimonials_title?: string | null
+                    testimonials_description?: string | null
+                    testimonials_items?: Json
+                    faq_badge?: string | null
+                    faq_title: string
+                    faq_description: string
+                    faq_items?: Json
+                    cta_title?: string | null
+                    cta_description?: string | null
+                    cta_primary_text?: string | null
+                    cta_primary_url?: string | null
+                    cta_secondary_text?: string | null
+                    cta_secondary_url?: string | null
+                    footer_description?: string | null
+                    footer_program_title?: string | null
+                    contact_phone?: string | null
+                    contact_email?: string | null
+                    contact_address?: string | null
+                    contact_hours?: string | null
+                    social_links?: Json
+                    footer_quick_links?: Json
+                    footer_program_links?: Json
+                    footer_copyright?: string | null
+                    footer_policy_text?: string | null
+                    footer_policy_url?: string | null
+                    footer_terms_text?: string | null
+                    footer_terms_url?: string | null
+                    seo_meta_title?: string | null
+                    seo_meta_description?: string | null
+                    seo_meta_keywords?: string | null
+                    seo_og_title?: string | null
+                    seo_og_description?: string | null
+                    seo_og_image_url?: string | null
+                    seo_favicon_url?: string | null
+                    updated_by?: string | null
+                    updated_at?: string
+                }
+                Update: {
+                    site_name?: string
+                    navbar_logo_text?: string
+                    navbar_logo_image_url?: string | null
+                    navbar_logo_image_alt?: string | null
+                    navigation_items?: Json
+                    hero_badge?: string
+                    hero_badge_icon?: string | null
+                    hero_title_prefix?: string
+                    hero_title_accent?: string
+                    hero_title_suffix?: string
+                    hero_description?: string
+                    hero_primary_cta_text?: string | null
+                    hero_primary_cta_url?: string | null
+                    hero_secondary_cta_text?: string | null
+                    hero_secondary_cta_url?: string | null
+                    hero_image_url?: string | null
+                    hero_image_alt?: string | null
+                    hero_floating_cards?: Json
+                    stats_items?: Json
+                    why_badge?: string | null
+                    why_title?: string | null
+                    why_description?: string | null
+                    why_items?: Json
+                    programs_badge?: string | null
+                    programs_title?: string | null
+                    programs_description?: string | null
+                    program_items?: Json
+                    showcase_badge?: string | null
+                    showcase_title?: string | null
+                    showcase_description?: string | null
+                    showcase_cta_text?: string | null
+                    showcase_cta_url?: string | null
+                    showcase_features?: Json
+                    showcase_images?: Json
+                    pricing_badge?: string | null
+                    pricing_title?: string | null
+                    pricing_description?: string | null
+                    pricing_note?: string | null
+                    pricing_plans?: Json
+                    flow_badge?: string | null
+                    flow_title?: string | null
+                    flow_description?: string | null
+                    flow_steps?: Json
+                    testimonials_badge?: string | null
+                    testimonials_title?: string | null
+                    testimonials_description?: string | null
+                    testimonials_items?: Json
+                    faq_badge?: string | null
+                    faq_title?: string
+                    faq_description?: string
+                    faq_items?: Json
+                    cta_title?: string | null
+                    cta_description?: string | null
+                    cta_primary_text?: string | null
+                    cta_primary_url?: string | null
+                    cta_secondary_text?: string | null
+                    cta_secondary_url?: string | null
+                    footer_description?: string | null
+                    footer_program_title?: string | null
+                    contact_phone?: string | null
+                    contact_email?: string | null
+                    contact_address?: string | null
+                    contact_hours?: string | null
+                    social_links?: Json
+                    footer_quick_links?: Json
+                    footer_program_links?: Json
+                    footer_copyright?: string | null
+                    footer_policy_text?: string | null
+                    footer_policy_url?: string | null
+                    footer_terms_text?: string | null
+                    footer_terms_url?: string | null
+                    seo_meta_title?: string | null
+                    seo_meta_description?: string | null
+                    seo_meta_keywords?: string | null
+                    seo_og_title?: string | null
+                    seo_og_description?: string | null
+                    seo_og_image_url?: string | null
+                    seo_favicon_url?: string | null
+                    updated_by?: string | null
+                    updated_at?: string
                 }
             }
         }
@@ -407,7 +693,9 @@ export type PaymentProof = Database['public']['Tables']['payment_proofs']['Row']
 export type Attendance = Database['public']['Tables']['attendances']['Row']
 export type CourseMaterial = Database['public']['Tables']['course_materials']['Row']
 export type ActivityLog = Database['public']['Tables']['activity_logs']['Row']
+export type MediaAsset = Database['public']['Tables']['media_assets']['Row']
 export type Announcement = Database['public']['Tables']['announcements']['Row']
+export type LandingPageContent = Database['public']['Tables']['landing_page_content']['Row']
 
 export type UserRole = Profile['role']
 export type RegistrationStatus = Registration['status']

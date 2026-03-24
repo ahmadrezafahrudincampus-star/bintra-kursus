@@ -1,25 +1,50 @@
 'use client'
 
+import { useState } from 'react'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 type AuthSocialButtonsProps = {
     mode: 'login' | 'register'
+    redirectTo?: string | null
 }
 
-export function AuthSocialButtons({ mode }: AuthSocialButtonsProps) {
+export function AuthSocialButtons({ mode, redirectTo }: AuthSocialButtonsProps) {
     const actionLabel = mode === 'login' ? 'masuk' : 'daftar'
+    const [pendingProvider, setPendingProvider] = useState<'google' | 'facebook' | null>(null)
 
-    const handleComingSoon = (provider: string) => {
-        toast(`${provider} untuk ${actionLabel} belum tersedia.`)
+    const handleOAuth = async (provider: 'google' | 'facebook') => {
+        setPendingProvider(provider)
+        const callbackUrl = new URL('/auth/callback', window.location.origin)
+
+        if (redirectTo) {
+            callbackUrl.searchParams.set('next', redirectTo)
+        }
+
+        const supabase = createClient()
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+                redirectTo: callbackUrl.toString(),
+            },
+        })
+
+        if (error) {
+            setPendingProvider(null)
+            toast.error(`${provider === 'google' ? 'Google' : 'Facebook'} untuk ${actionLabel} gagal dihubungkan.`)
+        }
     }
 
     return (
         <div className="grid grid-cols-2 gap-3">
             <button
                 type="button"
-                onClick={() => handleComingSoon('Google')}
+                onClick={() => handleOAuth('google')}
+                disabled={pendingProvider !== null}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/70 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:border-[--primary]/30 hover:bg-[color:var(--brand-50)] hover:text-[--primary]"
             >
+                {pendingProvider === 'google' ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                 <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.96 5.96 0 0 1-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09Z"
@@ -38,20 +63,24 @@ export function AuthSocialButtons({ mode }: AuthSocialButtonsProps) {
                         fill="#EA4335"
                     />
                 </svg>
+                )}
                 Google
             </button>
 
             <button
                 type="button"
-                onClick={() => handleComingSoon('Facebook')}
+                onClick={() => handleOAuth('facebook')}
+                disabled={pendingProvider !== null}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/70 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:border-[--primary]/30 hover:bg-[color:var(--brand-50)] hover:text-[--primary]"
             >
+                {pendingProvider === 'facebook' ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                 <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                         d="M24 12.07C24 5.45 18.63.07 12 .07S0 5.45 0 12.07c0 5.99 4.39 10.95 10.13 11.85v-8.39H7.08v-3.47h3.05V9.43c0-3 1.79-4.67 4.53-4.67 1.31 0 2.68.24 2.68.24v2.95h-1.51c-1.49 0-1.96.93-1.96 1.87v2.25h3.33l-.53 3.47h-2.8v8.39C19.61 23.03 24 18.06 24 12.07Z"
                         fill="#1877F2"
                     />
                 </svg>
+                )}
                 Facebook
             </button>
         </div>

@@ -31,8 +31,8 @@ const registerSchema = z
             .regex(/^[0-9+\-\s]+$/, 'Format nomor HP tidak valid'),
         password: z.string().min(8, 'Password minimal 8 karakter'),
         confirmPassword: z.string(),
-        agreeTerms: z.literal(true, {
-            errorMap: () => ({ message: 'Setujui syarat & ketentuan terlebih dahulu' }),
+        agreeTerms: z.boolean().refine((value) => value, {
+            message: 'Setujui syarat & ketentuan terlebih dahulu',
         }),
     })
     .refine((data) => data.password === data.confirmPassword, {

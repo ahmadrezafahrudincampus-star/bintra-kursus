@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { Attendance } from '@/types/database'
+import type { Attendance, Database } from '@/types/database'
 
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'SICK' | 'PERMIT'
 
@@ -17,6 +17,13 @@ export interface AttendanceBatchRecord {
     enrollment_id: string
     status: AttendanceStatus
     notes?: string
+}
+
+type EnrollmentStudentRow = {
+    id: string
+    profile_id: string
+    participant_category: string
+    profiles: { full_name: string } | null
 }
 
 /** Admin: ambil semua sesi aktif untuk dropdown input absensi */
@@ -49,14 +56,14 @@ export async function getSessionStudents(sessionId: string): Promise<SessionStud
         .select('id, profile_id, participant_category, profiles(full_name)')
         .eq('session_id', sessionId)
         .eq('status', 'ACTIVE')
-        .returns<any[]>()
+        .returns<EnrollmentStudentRow[]>()
 
     if (!data) return []
 
-    return data.map((e: any) => ({
+    return data.map((e) => ({
         enrollment_id: e.id,
         profile_id: e.profile_id,
-        full_name: e.profiles?.full_name ?? '—',
+        full_name: e.profiles?.full_name ?? '-',
         participant_category: e.participant_category,
     }))
 }
@@ -125,7 +132,27 @@ export async function submitAttendance(
         .single()
     if (profile?.role !== 'super_admin') return { error: 'Unauthorized' }
 
-    const rows = records.map((r) => ({
+    const { data: validEnrollments, error: validEnrollmentError } = await supabase
+        .from('student_enrollments')
+        .select('id')
+        .eq('session_id', sessionId)
+        .eq('status', 'ACTIVE')
+        .returns<{ id: string }[]>()
+
+    if (validEnrollmentError) return { error: validEnrollmentError.message }
+
+    const validIds = new Set((validEnrollments ?? []).map((enrollment) => enrollment.id))
+    const safeRecords = records.filter((record) => validIds.has(record.enrollment_id))
+
+    if (safeRecords.length === 0) {
+        return { error: 'Tidak ada data absensi valid untuk sesi ini.' }
+    }
+
+    if (safeRecords.length !== records.length) {
+        return { error: 'Sebagian data absensi tidak cocok dengan sesi yang dipilih.' }
+    }
+
+    const rows: Database['public']['Tables']['attendances']['Insert'][] = safeRecords.map((r) => ({
         enrollment_id: r.enrollment_id,
         session_id: sessionId,
         date,
@@ -137,7 +164,7 @@ export async function submitAttendance(
 
     const { error } = await supabase
         .from('attendances')
-        .upsert(rows as any, { onConflict: 'enrollment_id,date,meeting_number' })
+        .upsert(rows as never, { onConflict: 'enrollment_id,date,meeting_number' })
 
     if (error) return { error: error.message }
 

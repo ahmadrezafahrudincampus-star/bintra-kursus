@@ -8,13 +8,11 @@ import {
     UserPlus,
     CreditCard,
     CheckCircle,
-    Clock,
     ArrowRight,
     TrendingUp,
     BookOpen,
     ClipboardList,
     Activity,
-    Wallet,
     Receipt,
 } from 'lucide-react'
 import type { Metadata } from 'next'
@@ -64,23 +62,25 @@ export default async function AdminDashboardPage() {
 
     const [
         studentsResult,
+        activeSessionsResult,
+        unpaidInvoicesCountResult,
+        newRegistrationsResult,
         pendingRegsResult,
         totalPendingResult,
-        paidThisMonthResult,
-        unpaidResult,
         attendanceMonthResult,
         pendingFeedResult,
         paymentFeedResult,
         attendanceFeedResult,
     ] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact' }).eq('role', 'student'),
+        supabase.from('student_enrollments').select('id', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
+        supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('invoices').select('id', { count: 'exact', head: true }).in('status', ['UNPAID', 'OVERDUE']),
+        supabase.from('registrations').select('id', { count: 'exact', head: true }).gte('created_at', startOfMonth),
         supabase.from('registrations').select(`
             id, full_name, reg_number, participant_category, created_at,
             course_master(name)
         `).eq('status', 'PENDING').order('created_at', { ascending: true }).limit(5),
         supabase.from('registrations').select('id', { count: 'exact' }).eq('status', 'PENDING'),
-        supabase.from('invoices').select('amount').eq('status', 'PAID').eq('period_year', currentYear).eq('period_month', currentMonth).returns<{ amount: number }[]>(),
-        supabase.from('invoices').select('amount').in('status', ['UNPAID', 'OVERDUE']).returns<{ amount: number; status: string }[]>(),
         supabase.from('attendances').select('id, session_id, date, meeting_number, status').gte('date', startOfMonth).returns<{ id: string; session_id: string; date: string; meeting_number: number; status: string }[]>(),
         supabase.from('registrations').select('id, full_name, created_at').eq('status', 'PENDING').order('created_at', { ascending: false }).limit(5).returns<{ id: string; full_name: string; created_at: string }[]>(),
         supabase.from('payment_proofs').select(`
@@ -94,8 +94,6 @@ export default async function AdminDashboardPage() {
     ])
 
     const pendingRegs = (pendingRegsResult.data ?? []) as PendingReg[]
-    const paidThisMonth = (paidThisMonthResult.data ?? []).reduce((sum, item) => sum + item.amount, 0)
-    const totalUnpaidAmount = (unpaidResult.data ?? []).reduce((sum, item) => sum + item.amount, 0)
 
     const attendanceMonth = attendanceMonthResult.data ?? []
     const totalAttendanceRecords = attendanceMonth.length
@@ -154,26 +152,26 @@ export default async function AdminDashboardPage() {
                         href: '/admin/siswa',
                     },
                     {
-                        label: 'Menunggu Review',
-                        value: totalPendingResult.count ?? 0,
-                        icon: Clock,
+                        label: 'Sesi Aktif',
+                        value: activeSessionsResult.count ?? 0,
+                        icon: BookOpen,
+                        color: 'bg-indigo-50 text-indigo-600',
+                        href: '/admin/jadwal',
+                    },
+                    {
+                        label: 'Invoice Belum Bayar',
+                        value: unpaidInvoicesCountResult.count ?? 0,
+                        icon: CreditCard,
+                        color: 'bg-red-50 text-red-600',
+                        href: '/admin/keuangan',
+                    },
+                    {
+                        label: 'Pendaftar Baru Bulan Ini',
+                        value: newRegistrationsResult.count ?? 0,
+                        icon: UserPlus,
                         color: 'bg-yellow-50 text-yellow-600',
                         href: '/admin/pendaftar',
                         alert: (totalPendingResult.count ?? 0) > 0,
-                    },
-                    {
-                        label: 'Pemasukan Bulan Ini',
-                        value: `Rp ${paidThisMonth.toLocaleString('id-ID')}`,
-                        icon: Wallet,
-                        color: 'bg-green-50 text-green-600',
-                        href: '/admin/keuangan',
-                    },
-                    {
-                        label: 'Total Tunggakan',
-                        value: `Rp ${totalUnpaidAmount.toLocaleString('id-ID')}`,
-                        icon: TrendingUp,
-                        color: 'bg-red-50 text-red-600',
-                        href: '/admin/keuangan',
                     },
                 ] as { label: string; value: string | number; icon: React.ElementType; color: string; href: string; alert?: boolean }[]).map((stat) => {
                     const Icon = stat.icon

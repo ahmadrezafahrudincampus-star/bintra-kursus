@@ -33,6 +33,28 @@ interface AdminEnrollmentData {
     } | null
 }
 
+type SessionListRow = {
+    id: string
+    name: string
+    day_of_week: string
+    course_master: { name: string } | null
+}
+
+type EnrollmentStudentRow = {
+    profile_id: string
+    profiles: { full_name: string } | null
+}
+
+type InvoiceCardRow = {
+    id: string
+    amount: number
+    status: string
+    period_month: number
+    period_year: number
+    due_date: string
+    invoice_number: string
+}
+
 export default async function AdminKartuIuranPage({
     searchParams,
 }: {
@@ -53,7 +75,7 @@ export default async function AdminKartuIuranPage({
         .order('day_of_week')
         .order('name')
 
-    const sessions = sessionsData ?? []
+    const sessions = (sessionsData ?? []) as SessionListRow[]
 
     let students: { id: string; name: string }[] = []
     if (selectedSession) {
@@ -64,8 +86,8 @@ export default async function AdminKartuIuranPage({
             .eq('status', 'ACTIVE')
 
         if (enrollments) {
-            students = enrollments
-                .map((enrollment: any) => ({
+            students = (enrollments as EnrollmentStudentRow[])
+                .map((enrollment) => ({
                     id: enrollment.profile_id,
                     name: enrollment.profiles?.full_name ?? '-',
                 }))
@@ -75,7 +97,7 @@ export default async function AdminKartuIuranPage({
 
     let profileData: AdminProfileData | null = null
     let enrollmentData: AdminEnrollmentData | null = null
-    let invoices: any[] = []
+    let invoices: InvoiceCardRow[] = []
 
     if (selectedProfile) {
         const [{ data: profile }, { data: enrollment }, { data: invoiceData }] = await Promise.all([
@@ -104,7 +126,7 @@ export default async function AdminKartuIuranPage({
 
         profileData = (profile ?? null) as AdminProfileData | null
         enrollmentData = (enrollment ?? null) as AdminEnrollmentData | null
-        invoices = invoiceData ?? []
+        invoices = (invoiceData ?? []) as InvoiceCardRow[]
     }
 
     invoices.sort((a, b) => {
@@ -170,7 +192,7 @@ export default async function AdminKartuIuranPage({
                                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                                 >
                                     <option value="">-- Pilih Sesi --</option>
-                                    {sessions.map((session: any) => (
+                                    {sessions.map((session) => (
                                         <option key={session.id} value={session.id}>
                                             {session.name} ({session.day_of_week}) {session.course_master?.name ? `- ${session.course_master.name}` : ''}
                                         </option>

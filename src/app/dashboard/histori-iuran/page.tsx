@@ -9,6 +9,17 @@ export const metadata: Metadata = { title: 'Histori Pembayaran | Siswa' }
 
 const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
 
+type PaymentHistoryRow = {
+    id: string
+    period_month: number
+    period_year: number
+    amount: number
+    status: 'PENDING' | 'VERIFIED' | 'REJECTED'
+    admin_note: string | null
+    created_at: string
+    verified_at: string | null
+}
+
 export default async function HistoriIuranPage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -57,7 +68,7 @@ export default async function HistoriIuranPage() {
                         </div>
                     ) : (
                         <div className="divide-y divide-border/60">
-                            {proofs.map((proof: any) => {
+                            {(proofs as PaymentHistoryRow[]).map((proof) => {
                                 const isPending = proof.status === 'PENDING'
                                 const isVerified = proof.status === 'VERIFIED'
                                 const isRejected = proof.status === 'REJECTED'

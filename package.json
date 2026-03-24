@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:super-admin": "node scripts/seed-super-admin.mjs"
+    "seed:super-admin": "node scripts/seed-super-admin.mjs",
+    "seed:dummy-registrations": "node scripts/seed-dummy-registrations.mjs",
+    "approve:dummy-registrations": "node scripts/approve-dummy-registrations.mjs",
+    "test:dummy-payments": "node scripts/test-dummy-payments.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

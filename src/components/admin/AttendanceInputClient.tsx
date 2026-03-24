@@ -1,12 +1,10 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { getSessionStudents, getAttendanceMeetings, getAttendanceByMeeting, submitAttendance } from '@/lib/actions/attendance'
+import { getSessionStudents, getAttendanceByMeeting, submitAttendance } from '@/lib/actions/attendance'
 import type { SessionStudent, AttendanceStatus, AttendanceBatchRecord } from '@/lib/actions/attendance'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, CheckCircle, Save, ChevronDown } from 'lucide-react'
+import { Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
@@ -20,10 +18,9 @@ interface AttendanceClientProps {
     sessionId: string
     date: string
     meetingNumber: number
-    sessions: { id: string; name: string; day_of_week: string }[]
 }
 
-export function AttendanceInputClient({ sessionId, date, meetingNumber, sessions }: AttendanceClientProps) {
+export function AttendanceInputClient({ sessionId, date, meetingNumber }: AttendanceClientProps) {
     const [students, setStudents] = useState<SessionStudent[]>([])
     const [records, setRecords] = useState<Record<string, AttendanceStatus>>({})
     const [loading, setLoading] = useState(true)

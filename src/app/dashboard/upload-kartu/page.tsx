@@ -171,10 +171,10 @@ export default function UploadKartuPage() {
                     </div>
 
                     <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
-                        <p className="font-medium text-foreground">📸 Tips foto yang baik:</p>
-                        <p>• Foto dengan pencahayaan yang cukup, hindari bayangan</p>
-                        <p>• Pastikan tulisan dan tanda tangan terlihat jelas</p>
-                        <p>• Foto seluruh kartu/kuitansi, tidak terpotong</p>
+                        <p className="font-medium text-foreground">Tips foto yang baik:</p>
+                        <p>- Foto dengan pencahayaan yang cukup, hindari bayangan</p>
+                        <p>- Pastikan tulisan dan tanda tangan terlihat jelas</p>
+                        <p>- Foto seluruh kartu/kuitansi, tidak terpotong</p>
                     </div>
 
                     <Button
